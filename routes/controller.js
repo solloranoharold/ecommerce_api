@@ -7,13 +7,12 @@ const moment = require('moment')
 var mysql      = require('mysql');
 var md5 = require('md5')
 const multer = require('multer');
-// local
-// var connection = mysql.createConnection({
-//   host     : 'localhost',
-//   user     : 'root',
-//   password : '',
-//   database : 'lechon_db'
-// });
+var connection = mysql.createConnection({
+  host     : 'localhost',
+  user     : 'root',
+  password : '',
+  database : 'lechon_db'
+});
 // actual
 var connection = mysql.createConnection({
   host     : 'bz5a14bynjzyfxh2d8je-mysql.services.clever-cloud.com',
@@ -29,8 +28,30 @@ router.use(
     extended: false,
   })
 );
-router.get('/',(req,res)=>{
-  res.send('Hello Worlds!')
+
+
+let querydate = `SELECT * FROM tbl_years WHERE year = '${moment().format('YYYY')}'`
+connection.query(querydate, function (error, results, fields) {
+  if(results.length == 0 ){
+    let newdate = `INSERT INTO tbl_years (year)VALUES('${moment().format('YYYY')}')`
+    connection.query(newdate, function (error, results, fields) {
+      if(error) throw error;
+    })
+  }
+})
+router.get('/loadYears',(req,res)=>{ 
+  let sql =`SELECT * FROM tbl_years`
+  connection.query(sql, function (error, results, fields) {
+    if(error) throw error;
+    res.send(results)
+  })
+})
+router.get('/loadRecords/:year' , (req,res)=>{ 
+  let sql = `SELECT * FROM tbl_all_invoice WHERE YEAR(created_at) ='${req.params.year}'`
+  connection.query(sql, function (error, results, fields) {
+    if(error) throw error;
+    res.send(results)
+  })
 })
 // LOGIN 
 router.get('/login/:email/:password',(req,res)=>{ 
@@ -53,14 +74,17 @@ router.get('/login/:email/:password',(req,res)=>{
     });
 
 })
+
+
+
 //SIGNUP / UPDATE 
 router.post('/addEditAccount' ,(req,res)=>{ 
   let sql = ''
   if(req.body.method==0){
     sql=`insert into tbl_account
-    ( fullname , email , password , shipping_id , address , type )
+    ( fullname , email , password , shipping_id , brgy ,address , type )
     values
-    ('${req.body.fullname.toUpperCase()}', '${req.body.email.toUpperCase()}' , '${md5(req.body.password.toUpperCase())}' , ${req.body.shipping_id} ,'${req.body.address}' ,'USER' )
+    ('${req.body.fullname.toUpperCase()}', '${req.body.email.toUpperCase()}' , '${md5(req.body.password.toUpperCase())}' , ${req.body.shipping_id},'${req.body.brgy}' ,'${req.body.address}' ,'USER' )
     `
   }else{
     sql =`update tbl_account set 
@@ -83,16 +107,7 @@ router.get('/loadAccounts' ,(req,res)=>{
     res.send(results)
   });
 })
-router.get('/getAccount/:email/:pass' ,(req,res)=>{
-  let email = req.params.email
-  let pass = req.params.pass
 
-  let sql =`SELECT * FROM tbl_accoubt WHERE email='${email.toUpperCase()}' and pass='${md5(pass.toUpperCase())}'`
-  connection.query(sql, function (error, results, fields) {
-    if (error) throw error;
-    res.send(results)
-  });
-})
 // UPLOAD PRODUCTS 
 let path_product='./uploads/products'
 const product_storage = multer.diskStorage(
@@ -129,13 +144,13 @@ router.post('/addEditProducts' , (req,res)=>{
   let sql =``
   if(req.body.method == 0 ){
     sql =`INSERT INTO tbl_products 
-    (img_product , product_name , product_price , category , ratings )
+    (img_product , product_name , product_price , category  )
     VALUES
-    ('${req.body.img_product}' , '${req.body.product_name}',${parseFloat(req.body.product_price).toFixed(2)} , ${req.body.category},${req.body.ratings})
+    ('${req.body.img_product}' , '${req.body.product_name}',${parseFloat(req.body.product_price).toFixed(2)} , ${req.body.category})
     `
   }else{
     sql =`UPDATE tbl_products SET img_product='${req.body.img_product}' , product_name='${req.body.product_name}' , product_price=${parseFloat(req.body.product_price).toFixed(2)},
-    status=${req.body.status} , category=${req.body.category},ratings=${req.body.ratings} WHERE product_id = ${req.body.product_id}`
+    status=${req.body.status} , category=${req.body.category} WHERE product_id = ${req.body.product_id}`
   }
 
   connection.query(sql, function (error, results, fields) {
@@ -219,13 +234,14 @@ router.post('/addToCart' , (req,res)=>{
     res.send(results)
   });
 })
-router.post('/deleteToCart/:id',(req,res)=>{ 
-  let id = req.params.id
-  let sql =`DELETE FROM tbl_cart  WHERE cart_id=${id}`
-  connection.query(sql, function (error, results, fields) {
-    if (error) throw error;
-    res.send(results)
+router.post('/deleteToCart',(req,res)=>{ 
+  req.body.forEach(rec => {
+    let sql =`DELETE FROM tbl_cart  WHERE cart_id=${rec.cart_id}`
+    connection.query(sql, function (error, results, fields) {
+      if (error) throw error;
+    });
   });
+  res.send('deleted')
 })
 
 // LIST OF ORDERS 
@@ -233,15 +249,118 @@ router.get('/loadOrders/:id' , (req,res)=> {
   let id = req.params.id 
   let sql =''
   if(id > -1 ){
-     sql = `SELECT A.* , B.* , A.created_at AS 'DateCreated' from tbl_all_invoice A  
+     sql = `SELECT A.* , B.* ,A.status AS 'orderStatus' ,A.created_at AS 'DateCreated' from tbl_all_invoice A  
      INNER JOIN tbl_account B ON A.account_id = B.acc_id
      WHERE A.account_id = ${id}`
 
   }else{
-     sql = `SELECT A.* , B.* , A.created_at AS 'DateCreated' from tbl_all_invoice A  
+     sql = `SELECT A.* , B.* ,A.status AS 'orderStatus' , A.created_at AS 'DateCreated' from tbl_all_invoice A  
      INNER JOIN tbl_account B ON A.account_id = B.acc_id`
   }
   connection.query(sql, function (error, results, fields) {
+    if (error) throw error;
+    res.send(results)
+  });
+})
+
+// INVOICE ORDER 
+router.get('/loadInvoiceOrders/:invoice' , (req,res)=>{ 
+  console.log('/loadInvoiceOrders')
+  let invoice = req.params.invoice 
+  let sql =`SELECT A.*,B.* ,C.* FROM tbl_invoice A INNER JOIN tbl_products B
+  ON A.product_id = B.product_id
+   INNER JOIN tbl_all_invoice C 
+  ON A.invoice = C.invoice_id
+  WHERE A.invoice = '${invoice}'`
+  connection.query(sql, function (error, results, fields) {
+    if (error) throw error;
+    res.send(results)
+  });
+})
+
+ router.post('/getProductOrders',(req,res)=>{ 
+  console.log('/getProductOrders')
+    let promises=[]  
+    req.body.forEach(rec=>{ 
+      promises.push(getProducts(rec))
+    })
+    Promise.all(promises).then(data=>{
+      res.send(data)
+    })
+    function getProducts(rec){
+      return new Promise(resolve=>{ 
+        let sql =`SELECT A.*,B.*  FROM tbl_invoice A INNER JOIN tbl_products B
+        ON A.product_id = B.product_id
+        WHERE A.invoice = '${rec.invoice_id}'`
+        connection.query(sql, function (error, results, fields) {
+          if (error) throw error;
+          rec.Products = results
+          resolve(rec)
+        });
+      })
+    }
+
+ }) 
+
+
+router.post('/updateOrderStatus' ,(req,res)=>{ 
+  let sql =`UPDATE tbl_all_invoice SET status = ${req.body.orderStatus} WHERE invoice_id = '${req.body.invoice_id}'`
+
+  connection.query(sql, function (error, results, fields) {
+    if (error) throw error;
+  });
+  let message = `Your Order : ${req.body.invoice_id} ( ${req.body.orderStatus == 1 ? 'Pending' : req.body.orderStatus == 2 ? 'For Delivery' : req.body.orderStatus == 3 ? 'Cancelled' : 'Delivered'} )`
+  let notify = `INSERT INTO tbl_logs 
+  ( acc_id , message , invoice )
+  values
+  (${req.body.account_id} , '${message}' , '${req.body.invoice_id}')
+  `
+  connection.query(notify, function (error, results, fields) {
+    if (error) throw error;
+    res.send(results)
+  });
+})
+router.get('/deleteOrder/:invoice' , (req , res )=>{ 
+  let sql=`DELETE FROM tbl_all_invoice WHERE invoice_id = '${req.params.invoice}'`
+  connection.query(sql, function (error, results, fields) {
+    if (error) throw error;
+    let sql1=`DELETE FROM tbl_invoice WHERE invoice = '${req.params.invoice}'`
+    connection.query(sql1, function (error, results, fields) {
+      res.send(results)
+    })
+  });
+})
+const receipt_storage = multer.diskStorage(
+    {
+      destination:function(req,file,cb){
+        fs.mkdirSync(`./uploads/receipt` , {recursive:true})
+        cb( null ,`./uploads/receipt` )
+      },
+      filename: function (req, file, cb) {
+        let addObj = JSON.parse(req.body.addObj)
+        cb(null,addObj.receipt)
+      } 
+    }
+  )
+   
+var upload_receipt = multer({ storage: receipt_storage })
+router.post('/uploadReceipt' , upload_receipt.single('file') , (req,res)=>{ 
+  res.send('success')
+})
+
+router.post('/updateReceipt' ,(req,res)=>{ 
+  let sql =`UPDATE tbl_all_invoice SET receipt='${req.body.receipt}' WHERE invoice_id = '${req.body.invoice_id}'`
+
+  connection.query(sql, function (error, results, fields) {
+    if (error) throw error;
+  });
+  let message = `Order : ${req.body.invoice_id} upload a receipt please confirm!`
+  let notify = `INSERT INTO tbl_logs 
+  (  message , invoice )
+  values
+  ( '${message}' , '${req.body.invoice_id}')
+  `
+  connection.query(notify, function (error, results, fields) {
     if (error) throw error;
     res.send(results)
   });
@@ -257,6 +376,18 @@ router.get('/loadLogs/:id',(req,res)=>{
   }
   connection.query(sql, function (error, results, fields) {
     if (error) throw error;
+    results = results.filter(rec=>{
+      rec.createDate = moment(rec.createDate).format('YYYY-MM-DD HH:mm:ss')
+      return rec 
+    })
+    res.send(results)
+  });
+})
+
+router.get('/updateNotify/:id',(req,res)=>{ 
+  let sql = `UPDATE tbl_logs SET notify=0 WHERE log_id=${req.params.id}`
+  connection.query(sql, function (error, results, fields) {
+    if (error) throw error;
     res.send(results)
   });
 })
@@ -267,9 +398,9 @@ router.post('/proceedPayment', (req,res)=>{
   if(req.body.type=='buynow'){
     //PARA SA SAVING NG INVOICE PARA SA BAWAT PRODUCT
     sqlInvoice1=`INSERT INTO tbl_invoice  
-    (invoice , product_id)
+    (invoice , product_id , qty )
     VALUES
-    ('${invoice}',${req.body.data.product_id})`
+    ('${invoice}',${req.body.data.product_id}, ${req.body.data.quantity})`
 
     connection.query(sqlInvoice1, function (error, results, fields) {
       if (error) throw error;
@@ -277,9 +408,9 @@ router.post('/proceedPayment', (req,res)=>{
   }else{
      req.body.data.filter(rec => {
       sqlInvoice1=`INSERT INTO tbl_invoice  
-      (invoice , product_id)
+      (invoice , product_id , qty)
       VALUES
-      ('${invoice}',${rec.product_id})`
+      ('${invoice}',${rec.product_id} , ${rec.quantity})`
   
       connection.query(sqlInvoice1, function (error, results, fields) {
         if (error) throw error;
@@ -307,9 +438,9 @@ router.post('/proceedPayment', (req,res)=>{
 
       // PARA SA SAVING NG ISANG INVOICE MAG DIDISPLAY PARA SA MONITORING NG PAYMENT SAKA DELIVERY
       sqlInvoice2=`INSERT INTO tbl_all_invoice  
-      (invoice_id  , shipping_fee , total_price , account_id , type_of_payment)
+      (invoice_id  , shipping_fee , total_price , account_id , type_of_payment ,receipt)
       VALUES
-      ('${invoice}',${req.body.shipping} , ${req.body.total} ,${req.body.account} , '${req.body.payment}')`
+      ('${invoice}',${req.body.shipping} , ${req.body.total} ,${req.body.account} , '${req.body.payment}','${req.body.receipt}')`
       connection.query(sqlInvoice2, function (error, results, fields) {
         if (error) throw error;
         res.send(results)
