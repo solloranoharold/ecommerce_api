@@ -24,13 +24,13 @@ router.post('/sendOTP',(req,res)=>{
     var transporter = nodemailer.createTransport({
         service: 'Gmail',
         auth: {
-            user: 'dummyselfx123@gmail.com',
-            pass: 'mqlyayhjydynrbcv'
+            user: 'idealxtest123@gmail.com',
+            pass:'zuycivathmbukmzz'
         }
     });
 
     const mailOptions = {
-        from:  'dummyselfx123@gmail.com', // Sender address
+        from:  'idealxtest123@gmail.com', // Sender address
         to: req.body.email, // List of recipients
         subject: 'Email Verification', // Subject line
         html: ``,
