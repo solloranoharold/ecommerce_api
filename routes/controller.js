@@ -79,6 +79,7 @@ router.get('/login/:email/:password',(req,res)=>{
 
 //SIGNUP / UPDATE 
 router.post('/addEditAccount' ,(req,res)=>{ 
+  console.log(req.body)
   let sql = ''
   if(req.body.method==0){
     sql=`insert into tbl_account
@@ -93,8 +94,10 @@ router.post('/addEditAccount' ,(req,res)=>{
     shipping_id=${req.body.shipping_id},
     address='${req.body.address}' ,
     status = ${req.body.status} , 
+    brgy='${req.body.brgy}',
     type='${req.body.type}' where acc_id=${req.body.acc_id} `
   }
+  console.log(sql)
   connection.query(sql, function (error, results, fields) {
     if (error) throw error;
     res.send(results)
@@ -249,13 +252,13 @@ router.get('/loadOrders/:id' , (req,res)=> {
   let id = req.params.id 
   let sql =''
   if(id > -1 ){
-     sql = `SELECT A.* , B.* ,A.status AS 'orderStatus' ,A.created_at AS 'DateCreated' from tbl_all_invoice A  
-     INNER JOIN tbl_account B ON A.account_id = B.acc_id
+     sql = `SELECT A.* , B.* ,C.*,A.status AS 'orderStatus' ,A.created_at AS 'DateCreated' from tbl_all_invoice A  
+     INNER JOIN tbl_account B  ON A.account_id = B.acc_id INNER JOIN tbl_shipping C ON B.shipping_id = C.shipping_id
      WHERE A.account_id = ${id}`
 
   }else{
-     sql = `SELECT A.* , B.* ,A.status AS 'orderStatus' , A.created_at AS 'DateCreated' from tbl_all_invoice A  
-     INNER JOIN tbl_account B ON A.account_id = B.acc_id`
+     sql = `SELECT A.* , B.*,C.*, ,A.status AS 'orderStatus' , A.created_at AS 'DateCreated' from tbl_all_invoice A  
+     INNER JOIN tbl_account B ON A.account_id = B.acc_id INNER JOIN tbl_shipping C ON B.shipping_id = C.shipping_id`
   }
   connection.query(sql, function (error, results, fields) {
     if (error) throw error;
