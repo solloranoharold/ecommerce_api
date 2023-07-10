@@ -257,7 +257,7 @@ router.get('/loadOrders/:id' , (req,res)=> {
      WHERE A.account_id = ${id}`
 
   }else{
-     sql = `SELECT A.* , B.*,C.*, ,A.status AS 'orderStatus' , A.created_at AS 'DateCreated' from tbl_all_invoice A  
+     sql = `SELECT A.* , B.*,C.*, A.status AS 'orderStatus' , A.created_at AS 'DateCreated' from tbl_all_invoice A  
      INNER JOIN tbl_account B ON A.account_id = B.acc_id INNER JOIN tbl_shipping C ON B.shipping_id = C.shipping_id`
   }
   connection.query(sql, function (error, results, fields) {
