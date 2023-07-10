@@ -7,12 +7,12 @@ const moment = require('moment')
 var mysql      = require('mysql');
 var md5 = require('md5')
 const multer = require('multer');
-var connection = mysql.createConnection({
-  host     : 'localhost',
-  user     : 'root',
-  password : '',
-  database : 'lechon_db'
-});
+// var connection = mysql.createConnection({
+//   host     : 'localhost',
+//   user     : 'root',
+//   password : '',
+//   database : 'lechon_db'
+// });
 // actual
 var connection = mysql.createConnection({
   host     : 'bz5a14bynjzyfxh2d8je-mysql.services.clever-cloud.com',
