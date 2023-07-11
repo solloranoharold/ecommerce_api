@@ -44,15 +44,16 @@ router.post('/sendOTP',(req,res)=>{
          Staff<br/>
          <i>This is a generated email don't reply</i>
     `
-
+    
     transporter.sendMail(mailOptions, function(err, info) {
         if (err) {
           console.log(err)
+          res.send('error')
         } else {
           console.log(info);
           res.send(info)
         }
-    });
+    })
 
 
 
